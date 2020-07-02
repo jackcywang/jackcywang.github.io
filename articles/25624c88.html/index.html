@@ -1,0 +1,153 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"><meta name="theme-color" content="#222"><meta name="generator" content="Hexo 4.2.1"><link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png"><link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png"><link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png"><link rel="mask-icon" href="/images/logo.svg" color="#222"><link rel="stylesheet" href="/css/main.css"><link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css"><link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css"><script src="/lib/pace/pace.min.js"></script><script id="hexo-configurations">var NexT=window.NexT||{},CONFIG={hostname:"wangng.com",root:"/",scheme:"Pisces",version:"7.7.2",exturl:!1,sidebar:{position:"left",display:"post",padding:18,offset:12,onmobile:!1},copycode:{enable:!1,show_result:!1,style:null},back2top:{enable:!0,sidebar:!0,scrollpercent:!0},bookmark:{enable:!1,color:"#222",save:"auto"},fancybox:!1,mediumzoom:!1,lazyload:!1,pangu:!1,comments:{style:"tabs",active:null,storage:!0,lazyload:!1,nav:null},algolia:{hits:{per_page:10},labels:{input_placeholder:"Search for Posts",hits_empty:"We didn't find any results for the search: ${query}",hits_stats:"${hits} results found in ${time} ms"}},localsearch:{enable:!1,trigger:"auto",top_n_per_article:1,unescape:!1,preload:!1},motion:{enable:!0,async:!1,transition:{post_block:"fadeIn",post_header:"slideDownIn",post_body:"slideDownIn",coll_header:"slideLeftIn",sidebar:"slideUpIn"}},path:"search.xml"}</script><meta name="description" content="交叉熵损失是我们分类任务中经常用到了一个损失,但是我们很多时候只知道如何使用,对于其内部原理我们可能知之甚少,所有有必要学习其内部原理,更好的理解这个损失的含义。很明显,交叉熵损失是和信息论中的交叉熵有关的,交叉熵是信息论中的一个重要概念，主要用于度量两个概率分布间的差异性，要理解交叉熵我们有必要复习下信息论的知识。"><meta property="og:type" content="article"><meta property="og:title" content="细说交叉熵损失"><meta property="og:url" content="https://wangng.com/articles/25624c88.html/index.html"><meta property="og:site_name" content="jackcywang&#39;s blog"><meta property="og:description" content="交叉熵损失是我们分类任务中经常用到了一个损失,但是我们很多时候只知道如何使用,对于其内部原理我们可能知之甚少,所有有必要学习其内部原理,更好的理解这个损失的含义。很明显,交叉熵损失是和信息论中的交叉熵有关的,交叉熵是信息论中的一个重要概念，主要用于度量两个概率分布间的差异性，要理解交叉熵我们有必要复习下信息论的知识。"><meta property="og:locale" content="zh_CN"><meta property="article:published_time" content="2019-08-01T13:33:04.000Z"><meta property="article:modified_time" content="2020-06-24T08:16:12.662Z"><meta property="article:author" content="jackcywang"><meta property="article:tag" content="MachineLearning"><meta property="article:tag" content="Cross-entropy"><meta name="twitter:card" content="summary"><link rel="canonical" href="https://wangng.com/articles/25624c88.html/"><script id="page-configurations">CONFIG.page={sidebar:"",isHome:!1,isPost:!0,lang:"zh-CN"}</script><title>细说交叉熵损失 | jackcywang's blog</title><script>var _hmt=_hmt||[];!function(){var e=document.createElement("script");e.src="https://hm.baidu.com/hm.js?8ce866754ae6c95a7238894d36ad3ab0";var t=document.getElementsByTagName("script")[0];t.parentNode.insertBefore(e,t)}()</script><noscript><style>.sidebar-inner,.use-motion .brand,.use-motion .collection-header,.use-motion .comments,.use-motion .menu-item,.use-motion .pagination,.use-motion .post-block,.use-motion .post-body,.use-motion .post-header{opacity:initial}.use-motion .site-subtitle,.use-motion .site-title{opacity:initial;top:initial}.use-motion .logo-line-before i{left:initial}.use-motion .logo-line-after i{right:initial}</style></noscript></head><body itemscope itemtype="http://schema.org/WebPage"><div class="container use-motion"><div class="headband"></div> <a href="https://github.com/jackcywang" target="_blank" rel="noopener" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#64ceaa;color:#fff;position:absolute;top:0;border:0;right:0" aria-hidden="true"><path d="M0 0 115 115 130 115 142 142 250 250 250 0Z"></path><path d="M128.3 109C113.8 99.7 119 89.6 119 89.6 122 82.7 120.5 78.6 120.5 78.6 119.2 72 123.4 76.3 123.4 76.3 127.3 80.9 125.5 87.3 125.5 87.3 122.9 97.6 130.6 101.9 134.4 103.2" fill="currentColor" style="transform-origin:130px 106px" class="octo-arm"></path><path d="M115 115C114.9 115.1 118.7 116.5 119.8 115.4L133.7 101.6C136.9 99.2 139.9 98.4 142.2 98.6 133.8 88 127.5 74.4 143.8 58 148.5 53.4 154 51.2 159.7 51 160.3 49.4 163.2 43.6 171.4 40.1 171.4 40.1 176.1 42.5 178.8 56.2 183.1 58.6 187.2 61.8 190.9 65.4 194.5 69 197.7 73.2 200.1 77.6 213.8 80.2 216.3 84.9 216.3 84.9 212.7 93.1 206.9 96 205.4 96.6 205.1 102.4 203 107.8 198.3 112.5 181.9 128.9 168.3 122.5 157.7 114.1 157.9 116.9 156.7 120.9 152.7 124.9L141 136.5C139.8 137.7 141.6 141.9 141.8 141.8Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style><header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="header-inner"><div class="site-brand-container"><div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div><div class="site-meta"><div><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span> <span class="site-title">jackcywang's blog</span><span class="logo-line-after"><i></i></span></a></div><p class="site-subtitle">梦想与现实只在一念之间</p></div><div class="site-nav-right"><div class="toggle popup-trigger"></div></div></div><nav class="site-nav"><ul id="menu" class="menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-fw fa-home"></i> 首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i> 关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i> 标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i> 分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i> 归档</a></li></ul></nav></div></header><div class="reading-progress-bar"></div><main class="main"><div class="main-inner"><div class="content-wrap"><div class="content"><div class="posts-expand"><article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN"><link itemprop="mainEntityOfPage" href="https://wangng.com/articles/25624c88.html/"><span hidden itemprop="author" itemscope itemtype="http://schema.org/Person"><meta itemprop="image" content="/images/avatar.gif"><meta itemprop="name" content="jackcywang"><meta itemprop="description" content="不经一番彻骨寒,怎得梅花扑鼻香"></span><span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization"><meta itemprop="name" content="jackcywang's blog"></span><header class="post-header"><h1 class="post-title" itemprop="name headline"> 细说交叉熵损失</h1><div class="post-meta"><span class="post-meta-item"><span class="post-meta-item-icon"><i class="fa fa-calendar-o"></i></span> <span class="post-meta-item-text">发表于</span> <time title="创建时间：2019-08-01 21:33:04" itemprop="dateCreated datePublished" datetime="2019-08-01T21:33:04+08:00">2019-08-01</time></span><span class="post-meta-item"><span class="post-meta-item-icon"><i class="fa fa-folder-o"></i></span> <span class="post-meta-item-text">分类于</span> <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/MachineLearning/" itemprop="url" rel="index"><span itemprop="name">MachineLearning</span></a></span></span><span class="post-meta-item"><span class="post-meta-item-icon"><i class="fa fa-comment-o"></i></span> <span class="post-meta-item-text">Valine：</span><a title="valine" href="/articles/25624c88.html/#valine-comments" itemprop="discussionUrl"><span class="post-comments-count valine-comment-count" data-xid="/articles/25624c88.html/" itemprop="commentCount"></span></a></span><br><span class="post-meta-item" title="本文字数"><span class="post-meta-item-icon"><i class="fa fa-file-word-o"></i></span> <span class="post-meta-item-text">本文字数：</span> <span>3.1k</span></span><span class="post-meta-item" title="阅读时长"><span class="post-meta-item-icon"><i class="fa fa-clock-o"></i></span> <span class="post-meta-item-text">阅读时长 &asymp;</span> <span>3 分钟</span></span></div></header><div class="post-body" itemprop="articleBody"><p>　　交叉熵损失是我们分类任务中经常用到了一个损失,但是我们很多时候只知道如何使用,对于其内部原理我们可能知之甚少,所有有必要学习其内部原理,更好的理解这个损失的含义。很明显,交叉熵损失是和信息论中的交叉熵有关的,交叉熵是信息论中的一个重要概念，主要用于度量两个概率分布间的差异性，要理解交叉熵我们有必要复习下信息论的知识。</p><a id="more"></a><h3 id="信息量"><a href="#信息量" class="headerlink" title="信息量"></a>信息量</h3><p>　　信息量是对信息的度量。香农(Shannon)信息论应用概率来描述不确定性,信息量是用不确定性来量度,一个消息的可能性愈小，其信息愈多;而消息的可能性愈大，则其信息愈少。举个例子:<br><strong>太阳从东边出来</strong>,这个是个必然事件,概率为1,不确定性为0,所以它包含的信息量很小;<br>还有某个人做了一件令人改观的事的时候常说的<strong>太阳打西边出来了</strong>,这可能是调侃。但仔细一想,这句话所包含的信息量非常大(黑人问号脸,太阳怎么会从西边出来呢?),从信息论的角度来说,这是个概率极小极小的事件,不确定性很大。所以当越不可能的事件发生了，我们获取到的信息量就越大。越可能发生的事件发生了，我们获取到的信息量就越小</p><p>根据上述可总结如下：<strong>信息量的大小与信息发生的概率成反比</strong>。概率越大，信息量越小。概率越小，信息量越大。</p><p>设某一事件发生的概率为P(x)，其信息量表示为：</p><script type="math/tex;mode=display">
+I(x)=−log_{2}(P(x))\tag{1}</script><h3 id="信息熵"><a href="#信息熵" class="headerlink" title="信息熵"></a>信息熵</h3><p>　　信息量度量的是一个具体事件发生了所带来的信息，而熵则是在结果出来之前<strong>对可能产生的所有信息量的期望</strong>,信息熵的定义如下</p><script type="math/tex;mode=display">
+H(\mathbf{X})=-\sum_{i=1}^{n} P\left(x_{i}\right) \log \left(P\left(x_{i}\right)\right) \quad\left(\mathbf{X}=x_{1}, x_{2}, x_{3} \ldots, x_{n}\right)\tag{2}</script><p>使用明天的天气概率来计算其信息熵：</p><div class="table-container"><table><thead><tr><th style="text-align:center">序号</th><th style="text-align:center">事件</th><th style="text-align:center">概率p</th><th style="text-align:center">信息量I</th></tr></thead><tbody><tr><td style="text-align:center">1</td><td style="text-align:center">明天是晴天</td><td style="text-align:center">0.7</td><td style="text-align:center">-log(0.7)</td></tr><tr><td style="text-align:center">2</td><td style="text-align:center">明天是多云</td><td style="text-align:center">0.2</td><td style="text-align:center">-log(0.2)</td></tr><tr><td style="text-align:center">3</td><td style="text-align:center">明天是下雨</td><td style="text-align:center">0.1</td><td style="text-align:center">-log(0.1)</td></tr></tbody></table></div><script type="math/tex;mode=display">
+H(x) = -0.7\times log(0.7)-0.2\times log(0.2)-0.1\times log(0.1)=0.8019\tag{3}</script><h3 id="相对熵-KL散度"><a href="#相对熵-KL散度" class="headerlink" title="相对熵(KL散度)"></a>相对熵(KL散度)</h3><p>　　相对熵又称KL散度,如果我们对于同一个随机变量 x 有两个单独的概率分布 P(x) 和 Q(x)，我们可以使用 KL 散度（Kullback-Leibler (KL) divergence）来衡量这两个分布的差异,KL散度越小,两个分布越相近。公式如下:</p><script type="math/tex;mode=display">
+D_{K L}(p \| q)=\sum_{i=1}^{n} p\left(x_{i}\right) \log \left(\frac{p\left(x_{i}\right)}{q\left(x_{i}\right)}\right)\tag{4}</script><p>n表示所有事件的可能性。<br>　　在机器学习中,我们常常用P表示样本的真实分布,Q表示样本的预测分布,如在猫狗马三分类预测分布时,某张猫图片的分布P(x)=[1,0,0],其预测分布Q(x)=[0.6,0.3,0.1],其KL散度</p><script type="math/tex;mode=display">
+\begin{array}{c}
+D_{K L}(p \| q)=\sum_{i=1}^{n} p\left(x_{i}\right) \log \left(\frac{p\left(x_{i}\right)}{q\left(x_{i}\right)}\right) \\
+=p\left(x_{1}\right) \log \left(\frac{p\left(x_{1}\right)}{q\left(x_{1}\right)}\right)+p\left(x_{2}\right) \log \left(\frac{p\left(x_{2}\right)}{q\left(x_{2}\right)}\right)+p\left(x_{3}\right) \log \left(\frac{p\left(x_{3}\right)}{q\left(x_{3}\right)}\right) \\
+=1 * \log \left(\frac{1}{0.6}\right)=0.51\tag{5}
+\end{array}</script><p>KL散度越小，表示P(x)与Q(x)的分布更加接近，可以通过反复训练Q(x)来使Q(x)的分布逼近P(x)。</p><h3 id="交叉熵"><a href="#交叉熵" class="headerlink" title="交叉熵"></a>交叉熵</h3><p>　　将KL散度公式分解可得</p><script type="math/tex;mode=display">
+\begin{array}{c}
+\quad D_{K L}(p \| q)=\sum_{i=1}^{n} p\left(x_{i}\right) \log \left(\frac{p\left(x_{i}\right)}{q\left(x_{i}\right)}\right) \\
+=\sum_{i=1}^{n} p\left(x_{i}\right) \log \left(p\left(x_{i}\right)\right)-\sum_{i=1}^{n} p\left(x_{i}\right) \log \left(q\left(x_{i}\right)\right) \\
+=-H(x)+\left[-\sum_{i=1}^{n} p\left(x_{i}\right) \log \left(q\left(x_{i}\right)\right)\right]
+\end{array}\tag{6}</script><p>前者H(x)表示信息熵,后者即为交叉熵,因此<font color="red" size="3">KL散度 = 交叉熵 - 信息熵</font><br>交叉熵公式为:</p><script type="math/tex;mode=display">
+H(p, q)=-\sum_{i=1}^{n} p\left(x_{i}\right) \log \left(q\left(x_{i}\right)\right)\tag{7}</script><p>在机器学习训练网络时，输入数据与标签常常已经确定，那么真实概率分布P(x)也就确定下来了，所以信息熵在这里就是一个常量。由于KL散度的值表示真实概率分布P(x)与预测概率分布Q(x)之间的差异，值越小表示预测的结果越好，所以需要最小化KL散度，而交叉熵等于KL散度加上一个常量（信息熵），且公式相比KL散度更加容易计算，所以在机器学习中常常使用交叉熵损失函数来计算loss就行了</p><h3 id="交叉熵在单分类问题中的应用"><a href="#交叉熵在单分类问题中的应用" class="headerlink" title="交叉熵在单分类问题中的应用"></a>交叉熵在单分类问题中的应用</h3><p>在线性回归问题中，常常使用MSE(Mean Squared Error)作为loss函数，而在分类问题中常常使用交叉熵作为loss函数。</p><script type="math/tex;mode=display">
+loss= -log(q(x_{i}))\tag{8}</script><p>下面通过一个例子来说明如何计算交叉熵损失值,假设我们输入一张狗的图片，标签与预测值如下：</p><div class="table-container"><table><thead><tr><th style="text-align:center">-</th><th style="text-align:center">猫</th><th style="text-align:center">狗</th><th style="text-align:center">马</th><th style="text-align:center">-</th><th style="text-align:center">猫</th><th style="text-align:center">狗</th><th style="text-align:center">马</th></tr></thead><tbody><tr><td style="text-align:center">true</td><td style="text-align:center">0</td><td style="text-align:center">1</td><td style="text-align:center">0</td><td style="text-align:center"></td><td style="text-align:center">0</td><td style="text-align:center">1</td><td style="text-align:center">0</td></tr><tr><td style="text-align:center">pred</td><td style="text-align:center">0.6</td><td style="text-align:center">0.3</td><td style="text-align:center">0.1</td><td style="text-align:center"></td><td style="text-align:center">0.2</td><td style="text-align:center">0.7</td><td style="text-align:center">0.1</td></tr></tbody></table></div><p>交叉熵损失为</p><script type="math/tex;mode=display">
+\begin{array}{c}
+\operatorname{loss1}
+=-(0 * \log (0.2)+1 * \log (0.3)+0 * \log (0.1))=-log(0.3)=1.2\\
+\operatorname{loss2}
+=-(0 * \log (0.2)+1 * \log (0.7)+0 * \log (0.1))=-log(0.7)=0.36
+\end{array}\tag{8}</script><p>一个batch的loss为</p><script type="math/tex;mode=display">
+\operatorname{loss}=-\frac{1}{m} \sum_{i=1}^{m} \sum_{j=1}^{n} p\left(x_{i j}\right) \log \left(q\left(x_{i j}\right)\right)\tag{9}</script><p>m为一个batch中图片数量.</p><p>交叉熵能够衡量同一个随机变量中的两个不同概率分布的差异程度，在机器学习中就表示为真实概率分布与预测概率分布之间的差异。交叉熵的值越小，模型预测效果就越好。</p><h3 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h3><p><a href="https://blog.csdn.net/b1055077005/article/details/100152102" target="_blank" rel="noopener">交叉熵损失函数原理详解</a></p></div><div><ul class="post-copyright"><li class="post-copyright-author"> <strong>本文作者：</strong> jackcywang</li><li class="post-copyright-link"> <strong>本文链接：</strong> <a href="https://wangng.com/articles/25624c88.html/" title="细说交叉熵损失">https://wangng.com/articles/25624c88.html/</a></li><li class="post-copyright-license"> <strong>版权声明：</strong> 本博客所有文章除特别声明外，均采用<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i> BY-NC-SA</a> 许可协议。转载请注明出处！</li></ul></div><footer class="post-footer"><div class="post-tags"><a href="/tags/MachineLearning/" rel="tag"><i class="fa fa-tag"></i> MachineLearning</a><a href="/tags/Cross-entropy/" rel="tag"><i class="fa fa-tag"></i> Cross-entropy</a></div><div class="post-nav"><div class="post-nav-item"><a href="/articles/c71d2dd7.html/" rel="prev" title="C++之static静态成员变量与static静态成员函数"><i class="fa fa-chevron-left"></i> C++之static静态成员变量与static静态成员函数</a></div><div class="post-nav-item"> <a href="/articles/34f2d837.html/" rel="next" title="分类网络之ResNext解读">分类网络之ResNext解读<i class="fa fa-chevron-right"></i></a></div></div></footer></article></div></div><div class="tabs tabs-comment"><ul class="nav-tabs"><li class="tab"><a href="#comment-gitalk">gitalk</a></li><li class="tab"><a href="#comment-valine">valine</a></li></ul><div class="tab-content"><div class="tab-pane gitalk" id="comment-gitalk"><div class="comments" id="gitalk-container"></div></div><div class="tab-pane valine" id="comment-valine"><div class="comments" id="valine-comments"></div></div></div></div><script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script></div><div class="toggle sidebar-toggle"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div><aside class="sidebar"><div class="sidebar-inner"><ul class="sidebar-nav motion-element"><li class="sidebar-nav-toc"> 文章目录</li><li class="sidebar-nav-overview"> 站点概览</li></ul><div class="post-toc-wrap sidebar-panel"><div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#信息量"><span class="nav-number">1.</span> <span class="nav-text">信息量</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#信息熵"><span class="nav-number">2.</span> <span class="nav-text">信息熵</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#相对熵-KL散度"><span class="nav-number">3.</span> <span class="nav-text">相对熵(KL散度)</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#交叉熵"><span class="nav-number">4.</span> <span class="nav-text">交叉熵</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#交叉熵在单分类问题中的应用"><span class="nav-number">5.</span> <span class="nav-text">交叉熵在单分类问题中的应用</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#参考"><span class="nav-number">6.</span> <span class="nav-text">参考</span></a></li></ol></div></div><div class="site-overview-wrap sidebar-panel"><div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person"><p class="site-author-name" itemprop="name">jackcywang</p><div class="site-description" itemprop="description">不经一番彻骨寒,怎得梅花扑鼻香</div></div><div class="site-state-wrap motion-element"><nav class="site-state"><div class="site-state-item site-state-posts"> <a href="/archives/"><span class="site-state-item-count">66</span> <span class="site-state-item-name">日志</span></a></div><div class="site-state-item site-state-categories"> <a href="/categories/"><span class="site-state-item-count">14</span> <span class="site-state-item-name">分类</span></a></div><div class="site-state-item site-state-tags"> <a href="/tags/"><span class="site-state-item-count">65</span> <span class="site-state-item-name">标签</span></a></div></nav></div><div class="links-of-author motion-element"><span class="links-of-author-item"><a href="https://github.com/jackcywang" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jackcywang" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i> GitHub</a></span><span class="links-of-author-item"><a href="mailto:yourname@gmail.com" title="E-Mail → mailto:yourname@gmail.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-envelope"></i> E-Mail</a></span><span class="links-of-author-item"><a href="https://blog.csdn.net/weixin_42631693" title="CSDN → https:&#x2F;&#x2F;blog.csdn.net&#x2F;weixin_42631693" rel="noopener" target="_blank"><i class="fa fa-fw fa-CSDN"></i> CSDN</a></span><span class="links-of-author-item"><a href="https://www.zhihu.com/people/hao-han-zhong-de-yipian-xie" title="知乎 → https:&#x2F;&#x2F;www.zhihu.com&#x2F;people&#x2F;hao-han-zhong-de-yipian-xie" rel="noopener" target="_blank"><i class="fa fa-fw fa-知乎"></i> 知乎</a></span></div></div><div class="back-to-top motion-element"><i class="fa fa-arrow-up"></i> <span>0%</span></div></div></aside><div id="sidebar-dimmer"></div></div></main><footer class="footer"><div class="footer-inner"><div class="copyright"> &copy; 2019 – <span itemprop="copyrightYear">2020</span><span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">jackcywang</span> <span class="post-meta-divider">|</span><span class="post-meta-item-icon"><i class="fa fa-area-chart"></i></span> <span title="站点总字数">261k</span> <span class="post-meta-divider">|</span><span class="post-meta-item-icon"><i class="fa fa-coffee"></i></span> <span title="站点阅读时长">3:57</span></div><span id="sitetime"></span><script language="javascript">function siteTime(){window.setTimeout("siteTime()",1e3);var e=36e5,t=24*e,o=new Date,i=o.getFullYear(),n=o.getMonth()+1,a=o.getDate(),r=o.getHours(),s=o.getMinutes(),g=o.getSeconds(),l=Date.UTC(2020,1,1,15,0,0),m=Date.UTC(i,n,a,r,s,g)-l,M=Math.floor(m/t),T=Math.floor((m-M*t)/e),u=Math.floor((m-M*t-T*e)/6e4),f=Math.floor((m-M*t-T*e-6e4*u)/1e3);document.getElementById("sitetime").innerHTML=" 在此已等候"+M+" 天 "+T+" 小时 "+u+" 分钟 "+f+" 秒"}siteTime()</script><div> <a href="http://www.miitbeian.gov.cn/" rel="noopener" target="_blank">陕ICP备19023518号-1</a> <span class="post-meta-divider">|</span> <span style="padding-left:25px;background:url(/images/beian.png) no-repeat left center" rel="nofollow"><a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=61019002001038" rel="noopener" target="_blank">陕公网安备61019002001038号</a></span></div></div></footer></div><script src="/lib/anime.min.js"></script><script src="/lib/velocity/velocity.min.js"></script><script src="/lib/velocity/velocity.ui.min.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/pisces.js"></script><script src="/js/next-boot.js"></script><script>!function(){var t=document.createElement("script"),e=window.location.protocol.split(":")[0];t.src="https"===e?"https://zz.bdstatic.com/linksubmit/push.js":"http://push.zhanzhang.baidu.com/push.js";var s=document.getElementsByTagName("script")[0];s.parentNode.insertBefore(t,s)}()</script><script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script><script async src="/js/cursor/fireworks.js"></script><script src="https://cdn.jsdelivr.net/npm/moment@2.22.2/moment.min.js"></script><script src="https://cdn.jsdelivr.net/npm/moment-precise-range-plugin@1.3.0/moment-precise-range.min.js"></script><script>
+    function timer() {
+      var ages = moment.preciseDiff(moment(),moment(20191220,"YYYYMMDD"));
+      //去除时分秒信息
+      ages = ages.replace(/\s?\d{0,2}\s+hours?/, "");
+      ages = ages.replace(/\s?\d{0,2}\s+minutes?/, "");
+      ages = ages.replace(/\s?\d{0,2}\s+seconds?/, "");
+      //将年月日转换为中文
+      ages = ages.replace(/years?/, "年");
+      ages = ages.replace(/months?/, "月");
+      ages = ages.replace(/days?/, "天");
+      ages = ages.replace(/\d+/g, '<span style="color:#1890ff">$&</span>');
+      span.innerHTML = `footer.age ${ages}`;
+    }
+    var span = document.createElement("span");
+    //插入到agesicon之后
+    var agesicon = document.querySelector(".footer-ages-icon");
+    document.querySelector(".copyright").insertBefore(span, agesicon.nextSibling);
+    timer();
+  </script><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css"><script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '500094376d9d18a3ed06',
+      clientSecret: '71db1de3f4d19d73479a0ad6887d90081e8b7ca1',
+      repo        : 'MyGitalk',
+      owner       : 'jackcywang',
+      admin       : ['jackcywang'],
+      id          : '8d28e47e9efccfe6c941a8fee88e1c62',
+        language: '',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script><script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'qHl8YMnB0b5OHNGx0AO0fjIE-gzGzoHsz',
+      appKey     : 'wN3c6hhMnkEwVWOSLF0xQ3In',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script><script src="//lib.baomitu.com/jquery/3.3.1/jquery.min.js"></script><script src="https://player.lmih.cn/player/js/player.js" id="myhk" key="158704924834" m="1"></script></body></html>

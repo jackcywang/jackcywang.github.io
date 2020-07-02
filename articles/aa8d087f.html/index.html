@@ -1,0 +1,130 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=2"><meta name="theme-color" content="#222"><meta name="generator" content="Hexo 4.2.1"><link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png"><link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png"><link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png"><link rel="mask-icon" href="/images/logo.svg" color="#222"><link rel="stylesheet" href="/css/main.css"><link rel="stylesheet" href="/lib/font-awesome/css/font-awesome.min.css"><link rel="stylesheet" href="/lib/pace/pace-theme-minimal.min.css"><script src="/lib/pace/pace.min.js"></script><script id="hexo-configurations">var NexT=window.NexT||{},CONFIG={hostname:"wangng.com",root:"/",scheme:"Pisces",version:"7.7.2",exturl:!1,sidebar:{position:"left",display:"post",padding:18,offset:12,onmobile:!1},copycode:{enable:!1,show_result:!1,style:null},back2top:{enable:!0,sidebar:!0,scrollpercent:!0},bookmark:{enable:!1,color:"#222",save:"auto"},fancybox:!1,mediumzoom:!1,lazyload:!1,pangu:!1,comments:{style:"tabs",active:null,storage:!0,lazyload:!1,nav:null},algolia:{hits:{per_page:10},labels:{input_placeholder:"Search for Posts",hits_empty:"We didn't find any results for the search: ${query}",hits_stats:"${hits} results found in ${time} ms"}},localsearch:{enable:!1,trigger:"auto",top_n_per_article:1,unescape:!1,preload:!1},motion:{enable:!0,async:!1,transition:{post_block:"fadeIn",post_header:"slideDownIn",post_body:"slideDownIn",coll_header:"slideLeftIn",sidebar:"slideUpIn"}},path:"search.xml"}</script><meta name="description" content="分组卷积(Group Convolusion)提到分组卷积，我们最开始应该想到是大名鼎鼎的Alexnet.Alexnet最先用到了分组卷积，由于计算资源的有限，它将网络分成两部分，从而能够在两个GPU上并行运行。如图所示："><meta property="og:type" content="article"><meta property="og:title" content="CNN中的Group&amp;&amp;Depthwise&amp;&amp;pointerwise卷积"><meta property="og:url" content="https://wangng.com/articles/aa8d087f.html/index.html"><meta property="og:site_name" content="jackcywang&#39;s blog"><meta property="og:description" content="分组卷积(Group Convolusion)提到分组卷积，我们最开始应该想到是大名鼎鼎的Alexnet.Alexnet最先用到了分组卷积，由于计算资源的有限，它将网络分成两部分，从而能够在两个GPU上并行运行。如图所示："><meta property="og:locale" content="zh_CN"><meta property="og:image" content="http://cdn.wangng.com/deeplearning/CNN%E4%B8%AD%E7%9A%84Group&amp;&amp;Depthwise&amp;&amp;pointerwise%E5%8D%B7%E7%A7%AF/alexnet.png"><meta property="og:image" content="http://cdn.wangng.com/deeplearning/CNN%E4%B8%AD%E7%9A%84Group&amp;&amp;Depthwise&amp;&amp;pointerwise%E5%8D%B7%E7%A7%AF/%E5%88%86%E7%BB%84%E5%8D%B7%E7%A7%AF.png"><meta property="og:image" content="http://cdn.wangng.com/deeplearning/CNN%E4%B8%AD%E7%9A%84Group&amp;&amp;Depthwise&amp;&amp;pointerwise%E5%8D%B7%E7%A7%AF/depthwise.png"><meta property="og:image" content="http://cdn.wangng.com/deeplearning/CNN%E4%B8%AD%E7%9A%84Group&amp;&amp;Depthwise&amp;&amp;pointerwise%E5%8D%B7%E7%A7%AF/pointwise.png"><meta property="og:image" content="http://cdn.wangng.com/deeplearning/CNN%E4%B8%AD%E7%9A%84Group&amp;&amp;Depthwise&amp;&amp;pointerwise%E5%8D%B7%E7%A7%AF/seperate.png"><meta property="article:published_time" content="2019-04-04T02:35:37.000Z"><meta property="article:modified_time" content="2020-05-10T08:35:25.031Z"><meta property="article:author" content="jackcywang"><meta property="article:tag" content="Deeplearning"><meta property="article:tag" content="Group Convolusion"><meta property="article:tag" content="Depthwise Convolusion"><meta property="article:tag" content="Pointerwise Convolusion"><meta name="twitter:card" content="summary"><meta name="twitter:image" content="http://cdn.wangng.com/deeplearning/CNN%E4%B8%AD%E7%9A%84Group&amp;&amp;Depthwise&amp;&amp;pointerwise%E5%8D%B7%E7%A7%AF/alexnet.png"><link rel="canonical" href="https://wangng.com/articles/aa8d087f.html/"><script id="page-configurations">CONFIG.page={sidebar:"",isHome:!1,isPost:!0,lang:"zh-CN"}</script><title>CNN中的Group&&Depthwise&&pointerwise卷积 | jackcywang's blog</title><script>var _hmt=_hmt||[];!function(){var e=document.createElement("script");e.src="https://hm.baidu.com/hm.js?8ce866754ae6c95a7238894d36ad3ab0";var t=document.getElementsByTagName("script")[0];t.parentNode.insertBefore(e,t)}()</script><noscript><style>.sidebar-inner,.use-motion .brand,.use-motion .collection-header,.use-motion .comments,.use-motion .menu-item,.use-motion .pagination,.use-motion .post-block,.use-motion .post-body,.use-motion .post-header{opacity:initial}.use-motion .site-subtitle,.use-motion .site-title{opacity:initial;top:initial}.use-motion .logo-line-before i{left:initial}.use-motion .logo-line-after i{right:initial}</style></noscript></head><body itemscope itemtype="http://schema.org/WebPage"><div class="container use-motion"><div class="headband"></div> <a href="https://github.com/jackcywang" target="_blank" rel="noopener" class="github-corner" title="Follow me on GitHub" aria-label="Follow me on GitHub"><svg width="80" height="80" viewBox="0 0 250 250" style="fill:#64ceaa;color:#fff;position:absolute;top:0;border:0;right:0" aria-hidden="true"><path d="M0 0 115 115 130 115 142 142 250 250 250 0Z"></path><path d="M128.3 109C113.8 99.7 119 89.6 119 89.6 122 82.7 120.5 78.6 120.5 78.6 119.2 72 123.4 76.3 123.4 76.3 127.3 80.9 125.5 87.3 125.5 87.3 122.9 97.6 130.6 101.9 134.4 103.2" fill="currentColor" style="transform-origin:130px 106px" class="octo-arm"></path><path d="M115 115C114.9 115.1 118.7 116.5 119.8 115.4L133.7 101.6C136.9 99.2 139.9 98.4 142.2 98.6 133.8 88 127.5 74.4 143.8 58 148.5 53.4 154 51.2 159.7 51 160.3 49.4 163.2 43.6 171.4 40.1 171.4 40.1 176.1 42.5 178.8 56.2 183.1 58.6 187.2 61.8 190.9 65.4 194.5 69 197.7 73.2 200.1 77.6 213.8 80.2 216.3 84.9 216.3 84.9 212.7 93.1 206.9 96 205.4 96.6 205.1 102.4 203 107.8 198.3 112.5 181.9 128.9 168.3 122.5 157.7 114.1 157.9 116.9 156.7 120.9 152.7 124.9L141 136.5C139.8 137.7 141.6 141.9 141.8 141.8Z" fill="currentColor" class="octo-body"></path></svg></a><style>.github-corner:hover .octo-arm{animation:octocat-wave 560ms ease-in-out}@keyframes octocat-wave{0%,100%{transform:rotate(0)}20%,60%{transform:rotate(-25deg)}40%,80%{transform:rotate(10deg)}}@media (max-width:500px){.github-corner:hover .octo-arm{animation:none}.github-corner .octo-arm{animation:octocat-wave 560ms ease-in-out}}</style><header class="header" itemscope itemtype="http://schema.org/WPHeader"><div class="header-inner"><div class="site-brand-container"><div class="site-nav-toggle"><div class="toggle" aria-label="切换导航栏"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div></div><div class="site-meta"><div><a href="/" class="brand" rel="start"><span class="logo-line-before"><i></i></span> <span class="site-title">jackcywang's blog</span><span class="logo-line-after"><i></i></span></a></div><p class="site-subtitle">梦想与现实只在一念之间</p></div><div class="site-nav-right"><div class="toggle popup-trigger"></div></div></div><nav class="site-nav"><ul id="menu" class="menu"><li class="menu-item menu-item-home"><a href="/" rel="section"><i class="fa fa-fw fa-home"></i> 首页</a></li><li class="menu-item menu-item-about"><a href="/about/" rel="section"><i class="fa fa-fw fa-user"></i> 关于</a></li><li class="menu-item menu-item-tags"><a href="/tags/" rel="section"><i class="fa fa-fw fa-tags"></i> 标签</a></li><li class="menu-item menu-item-categories"><a href="/categories/" rel="section"><i class="fa fa-fw fa-th"></i> 分类</a></li><li class="menu-item menu-item-archives"><a href="/archives/" rel="section"><i class="fa fa-fw fa-archive"></i> 归档</a></li></ul></nav></div></header><div class="reading-progress-bar"></div><main class="main"><div class="main-inner"><div class="content-wrap"><div class="content"><div class="posts-expand"><article itemscope itemtype="http://schema.org/Article" class="post-block" lang="zh-CN"><link itemprop="mainEntityOfPage" href="https://wangng.com/articles/aa8d087f.html/"><span hidden itemprop="author" itemscope itemtype="http://schema.org/Person"><meta itemprop="image" content="/images/avatar.gif"><meta itemprop="name" content="jackcywang"><meta itemprop="description" content="不经一番彻骨寒,怎得梅花扑鼻香"></span><span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization"><meta itemprop="name" content="jackcywang's blog"></span><header class="post-header"><h1 class="post-title" itemprop="name headline"> CNN中的Group&&Depthwise&&pointerwise卷积</h1><div class="post-meta"><span class="post-meta-item"><span class="post-meta-item-icon"><i class="fa fa-calendar-o"></i></span> <span class="post-meta-item-text">发表于</span> <time title="创建时间：2019-04-04 10:35:37" itemprop="dateCreated datePublished" datetime="2019-04-04T10:35:37+08:00">2019-04-04</time></span><span class="post-meta-item"><span class="post-meta-item-icon"><i class="fa fa-folder-o"></i></span> <span class="post-meta-item-text">分类于</span> <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Deeplearning/" itemprop="url" rel="index"><span itemprop="name">Deeplearning</span></a></span> ， <span itemprop="about" itemscope itemtype="http://schema.org/Thing"><a href="/categories/Deeplearning/Convolution/" itemprop="url" rel="index"><span itemprop="name">Convolution</span></a></span></span><span class="post-meta-item"><span class="post-meta-item-icon"><i class="fa fa-comment-o"></i></span> <span class="post-meta-item-text">Valine：</span><a title="valine" href="/articles/aa8d087f.html/#valine-comments" itemprop="discussionUrl"><span class="post-comments-count valine-comment-count" data-xid="/articles/aa8d087f.html/" itemprop="commentCount"></span></a></span><br><span class="post-meta-item" title="本文字数"><span class="post-meta-item-icon"><i class="fa fa-file-word-o"></i></span> <span class="post-meta-item-text">本文字数：</span> <span>1.4k</span></span><span class="post-meta-item" title="阅读时长"><span class="post-meta-item-icon"><i class="fa fa-clock-o"></i></span> <span class="post-meta-item-text">阅读时长 &asymp;</span> <span>1 分钟</span></span></div></header><div class="post-body" itemprop="articleBody"><h3 id="分组卷积-Group-Convolusion"><a href="#分组卷积-Group-Convolusion" class="headerlink" title="分组卷积(Group Convolusion)"></a>分组卷积(Group Convolusion)</h3><p>提到分组卷积，我们最开始应该想到是大名鼎鼎的Alexnet.Alexnet最先用到了分组卷积，由于计算资源的有限，它将网络分成两部分，从而能够在两个GPU上并行运行。如图所示：<br><img src="http://cdn.wangng.com/deeplearning/CNN中的Group&amp;&amp;Depthwise&amp;&amp;pointerwise卷积/alexnet.png" alt></p><a id="more"></a><p>我们来具体看下,分组卷积是如何操作的。<br><img src="http://cdn.wangng.com/deeplearning/CNN中的Group&amp;&amp;Depthwise&amp;&amp;pointerwise卷积/分组卷积.png" alt></p><p>如上图所示，左边的是常规的卷积，右边就是分组卷积。它把输入的特征图分成了几个组,然后各个组分别进行常规的卷积，将分组卷积后得到的特征图进行concat拼接,最后得到新的特征图。</p><h4 id="常规卷积vs分组卷积"><a href="#常规卷积vs分组卷积" class="headerlink" title="常规卷积vs分组卷积"></a>常规卷积vs分组卷积</h4><p>从图中(线代表卷积操作)可以明显看出，分组卷积的计算量是明显低于常规卷积。这只是从图中判断而已,我们来具体分析下这个计算量到底少多少？</p><p>就以上面的图为例，假设输入特征图的大小是<code>H*W*N</code>,卷积核的数量大小是<code>M*k*k*N</code>,那么输出的特征图很快就能算出来就是<code>H*W*M</code>,另外假设分组大小是g组。我们来计算下两种卷积的参数量情况。</p><p>常规卷积的参数量是<code>M*k*k*N</code>。分组卷积我们仔细分析下，我们先计算一组的参数量,输入现在是<code>H * W * N/g</code>,输出是<code>H * W * M/s</code>,那么相应的卷积核数量大小就是<code>M/s * k * k * N/s</code>。所以分组卷积中一组的参数量就是<code>M/s * k * k * N/s</code>,一共有s组,最终的参数量为<code>M * k * k * N/s</code>,<strong>相比常规的卷积,分组卷积的参数量是它的<code>1/s</code>倍</strong>。这也是为什么人们会用分组卷积来代替常规卷积来降低模型的参数量。</p><h3 id="Depthwise卷积"><a href="#Depthwise卷积" class="headerlink" title="Depthwise卷积"></a>Depthwise卷积</h3><p>Depthwise卷积其实可以看做是分组卷积的极端情况。还是以上图为例，输入特征图为<code>H*W*N</code>,如果我们把分组大小s设成是输入特征图的深度(depth)N,输出特征图的大小也为<code>H*W*N</code>。那么这样的卷积方式就成为Depthwise卷积。<br><img src="http://cdn.wangng.com/deeplearning/CNN中的Group&amp;&amp;Depthwise&amp;&amp;pointerwise卷积/depthwise.png" alt></p><p>从图中我们可以看出,经过Depthwise卷积后,输出特征图的深度和输入特征图的深度保持一致。这种针对每个channel的卷积方式,没有有效的利用不同map对相同位置空间的信息，使得卷积后的效果大打折扣，虽然参数量进一步减少了。</p><p>Depthwise卷积的参数量为<code>k*k*N</code>。是常规卷积的<code>1/N</code></p><h3 id="Pointerwise卷积"><a href="#Pointerwise卷积" class="headerlink" title="Pointerwise卷积"></a>Pointerwise卷积</h3><p>Pointerwise卷积一般是紧跟Depthwise卷积的。Pointerwise卷积和常规卷积很相似,只不过卷积核的大小变成了<code>1*1*M</code>,M是上一层卷积的channl数。pointerwise卷积会对上一层的特征图在各个channel上进行线性加权就和,得到一个新的channel为1的特征图。<br><img src="http://cdn.wangng.com/deeplearning/CNN中的Group&amp;&amp;Depthwise&amp;&amp;pointerwise卷积/pointwise.png" alt></p><p>这里的pointerwise卷积就是我们所谓的<code>1*1</code>卷积。它会对上一层的特征图在channl维进行拓展。Pointerwise卷积的参数量是<code>N*1*1*M</code>,是常规卷积的<code>1/(k^2)</code></p><h3 id="深度可分离卷积"><a href="#深度可分离卷积" class="headerlink" title="深度可分离卷积"></a>深度可分离卷积</h3><p>说完Depthwise和pointwise卷积后,深度可分离卷积就很好理解了，深度可分离卷积就是这两种卷积的组合,它将常规卷积分成了两部分，输入特征图先经过Depthwise卷积,再经过pointerwise卷积。<br><img src="http://cdn.wangng.com/deeplearning/CNN中的Group&amp;&amp;Depthwise&amp;&amp;pointerwise卷积/seperate.png" alt></p><p>参数量方面我们来计算下:</p><script type="math/tex;mode=display">\frac{M*k*k+M*1*1*N}{M*k*k*N} = \frac{1}{N} + \frac{1}{K^2}</script><p>这和我们分别计算的结果是吻合的。</p><h3 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h3><p>1.<a href="https://blog.yani.io/filter-group-tutorial/" target="_blank" rel="noopener">A Tutorial on Filter Groups (Grouped Convolution)</a><br>2.<a href="https://www.cnblogs.com/shine-lee/p/10243114.html" target="_blank" rel="noopener">https://www.cnblogs.com/shine-lee/p/10243114.html</a><br>3.<a href="https://zhuanlan.zhihu.com/p/65377955" target="_blank" rel="noopener">理解分组卷积和深度可分离卷积如何降低参数量</a></p></div><div><ul class="post-copyright"><li class="post-copyright-author"> <strong>本文作者：</strong> jackcywang</li><li class="post-copyright-link"> <strong>本文链接：</strong> <a href="https://wangng.com/articles/aa8d087f.html/" title="CNN中的Group&amp;&amp;Depthwise&amp;&amp;pointerwise卷积">https://wangng.com/articles/aa8d087f.html/</a></li><li class="post-copyright-license"> <strong>版权声明：</strong> 本博客所有文章除特别声明外，均采用<a href="https://creativecommons.org/licenses/by-nc-sa/4.0/" rel="noopener" target="_blank"><i class="fa fa-fw fa-creative-commons"></i> BY-NC-SA</a> 许可协议。转载请注明出处！</li></ul></div><footer class="post-footer"><div class="post-tags"><a href="/tags/Deeplearning/" rel="tag"><i class="fa fa-tag"></i> Deeplearning</a><a href="/tags/Group-Convolusion/" rel="tag"><i class="fa fa-tag"></i> Group Convolusion</a><a href="/tags/Depthwise-Convolusion/" rel="tag"><i class="fa fa-tag"></i> Depthwise Convolusion</a><a href="/tags/Pointerwise-Convolusion/" rel="tag"><i class="fa fa-tag"></i> Pointerwise Convolusion</a></div><div class="post-nav"><div class="post-nav-item"><a href="/articles/b9a7760c.html/" rel="prev" title="轻量模型之MobileNetV1"><i class="fa fa-chevron-left"></i> 轻量模型之MobileNetV1</a></div><div class="post-nav-item"> <a href="/articles/20ae27b6.html/" rel="next" title="轻量模型之MobileNetV2">轻量模型之MobileNetV2<i class="fa fa-chevron-right"></i></a></div></div></footer></article></div></div><div class="tabs tabs-comment"><ul class="nav-tabs"><li class="tab"><a href="#comment-gitalk">gitalk</a></li><li class="tab"><a href="#comment-valine">valine</a></li></ul><div class="tab-content"><div class="tab-pane gitalk" id="comment-gitalk"><div class="comments" id="gitalk-container"></div></div><div class="tab-pane valine" id="comment-valine"><div class="comments" id="valine-comments"></div></div></div></div><script>
+  window.addEventListener('tabs:register', () => {
+    let { activeClass } = CONFIG.comments;
+    if (CONFIG.comments.storage) {
+      activeClass = localStorage.getItem('comments_active') || activeClass;
+    }
+    if (activeClass) {
+      let activeTab = document.querySelector(`a[href="#comment-${activeClass}"]`);
+      if (activeTab) {
+        activeTab.click();
+      }
+    }
+  });
+  if (CONFIG.comments.storage) {
+    window.addEventListener('tabs:click', event => {
+      if (!event.target.matches('.tabs-comment .tab-content .tab-pane')) return;
+      let commentClass = event.target.classList[1];
+      localStorage.setItem('comments_active', commentClass);
+    });
+  }
+</script></div><div class="toggle sidebar-toggle"><span class="toggle-line toggle-line-first"></span><span class="toggle-line toggle-line-middle"></span><span class="toggle-line toggle-line-last"></span></div><aside class="sidebar"><div class="sidebar-inner"><ul class="sidebar-nav motion-element"><li class="sidebar-nav-toc"> 文章目录</li><li class="sidebar-nav-overview"> 站点概览</li></ul><div class="post-toc-wrap sidebar-panel"><div class="post-toc motion-element"><ol class="nav"><li class="nav-item nav-level-3"><a class="nav-link" href="#分组卷积-Group-Convolusion"><span class="nav-number">1.</span> <span class="nav-text">分组卷积(Group Convolusion)</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#常规卷积vs分组卷积"><span class="nav-number">1.1.</span> <span class="nav-text">常规卷积vs分组卷积</span></a></li></ol></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Depthwise卷积"><span class="nav-number">2.</span> <span class="nav-text">Depthwise卷积</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Pointerwise卷积"><span class="nav-number">3.</span> <span class="nav-text">Pointerwise卷积</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#深度可分离卷积"><span class="nav-number">4.</span> <span class="nav-text">深度可分离卷积</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#参考"><span class="nav-number">5.</span> <span class="nav-text">参考</span></a></li></ol></div></div><div class="site-overview-wrap sidebar-panel"><div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person"><p class="site-author-name" itemprop="name">jackcywang</p><div class="site-description" itemprop="description">不经一番彻骨寒,怎得梅花扑鼻香</div></div><div class="site-state-wrap motion-element"><nav class="site-state"><div class="site-state-item site-state-posts"> <a href="/archives/"><span class="site-state-item-count">66</span> <span class="site-state-item-name">日志</span></a></div><div class="site-state-item site-state-categories"> <a href="/categories/"><span class="site-state-item-count">14</span> <span class="site-state-item-name">分类</span></a></div><div class="site-state-item site-state-tags"> <a href="/tags/"><span class="site-state-item-count">65</span> <span class="site-state-item-name">标签</span></a></div></nav></div><div class="links-of-author motion-element"><span class="links-of-author-item"><a href="https://github.com/jackcywang" title="GitHub → https:&#x2F;&#x2F;github.com&#x2F;jackcywang" rel="noopener" target="_blank"><i class="fa fa-fw fa-github"></i> GitHub</a></span><span class="links-of-author-item"><a href="mailto:yourname@gmail.com" title="E-Mail → mailto:yourname@gmail.com" rel="noopener" target="_blank"><i class="fa fa-fw fa-envelope"></i> E-Mail</a></span><span class="links-of-author-item"><a href="https://blog.csdn.net/weixin_42631693" title="CSDN → https:&#x2F;&#x2F;blog.csdn.net&#x2F;weixin_42631693" rel="noopener" target="_blank"><i class="fa fa-fw fa-CSDN"></i> CSDN</a></span><span class="links-of-author-item"><a href="https://www.zhihu.com/people/hao-han-zhong-de-yipian-xie" title="知乎 → https:&#x2F;&#x2F;www.zhihu.com&#x2F;people&#x2F;hao-han-zhong-de-yipian-xie" rel="noopener" target="_blank"><i class="fa fa-fw fa-知乎"></i> 知乎</a></span></div></div><div class="back-to-top motion-element"><i class="fa fa-arrow-up"></i> <span>0%</span></div></div></aside><div id="sidebar-dimmer"></div></div></main><footer class="footer"><div class="footer-inner"><div class="copyright"> &copy; 2019 – <span itemprop="copyrightYear">2020</span><span class="with-love"><i class="fa fa-heart"></i></span> <span class="author" itemprop="copyrightHolder">jackcywang</span> <span class="post-meta-divider">|</span><span class="post-meta-item-icon"><i class="fa fa-area-chart"></i></span> <span title="站点总字数">261k</span> <span class="post-meta-divider">|</span><span class="post-meta-item-icon"><i class="fa fa-coffee"></i></span> <span title="站点阅读时长">3:57</span></div><span id="sitetime"></span><script language="javascript">function siteTime(){window.setTimeout("siteTime()",1e3);var e=36e5,t=24*e,o=new Date,i=o.getFullYear(),n=o.getMonth()+1,a=o.getDate(),r=o.getHours(),s=o.getMinutes(),g=o.getSeconds(),l=Date.UTC(2020,1,1,15,0,0),m=Date.UTC(i,n,a,r,s,g)-l,M=Math.floor(m/t),T=Math.floor((m-M*t)/e),u=Math.floor((m-M*t-T*e)/6e4),f=Math.floor((m-M*t-T*e-6e4*u)/1e3);document.getElementById("sitetime").innerHTML=" 在此已等候"+M+" 天 "+T+" 小时 "+u+" 分钟 "+f+" 秒"}siteTime()</script><div> <a href="http://www.miitbeian.gov.cn/" rel="noopener" target="_blank">陕ICP备19023518号-1</a> <span class="post-meta-divider">|</span> <span style="padding-left:25px;background:url(/images/beian.png) no-repeat left center" rel="nofollow"><a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=61019002001038" rel="noopener" target="_blank">陕公网安备61019002001038号</a></span></div></div></footer></div><script src="/lib/anime.min.js"></script><script src="/lib/velocity/velocity.min.js"></script><script src="/lib/velocity/velocity.ui.min.js"></script><script src="/js/utils.js"></script><script src="/js/motion.js"></script><script src="/js/schemes/pisces.js"></script><script src="/js/next-boot.js"></script><script>!function(){var t=document.createElement("script"),e=window.location.protocol.split(":")[0];t.src="https"===e?"https://zz.bdstatic.com/linksubmit/push.js":"http://push.zhanzhang.baidu.com/push.js";var s=document.getElementsByTagName("script")[0];s.parentNode.insertBefore(t,s)}()</script><script>
+  if (typeof MathJax === 'undefined') {
+    window.MathJax = {
+      loader: {
+        source: {
+          '[tex]/amsCd': '[tex]/amscd',
+          '[tex]/AMScd': '[tex]/amscd'
+        }
+      },
+      tex: {
+        inlineMath: {'[+]': [['$', '$']]},
+        tags: 'ams'
+      },
+      options: {
+        renderActions: {
+          findScript: [10, doc => {
+            document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+              const display = !!node.type.match(/; *mode=display/);
+              const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+              const text = document.createTextNode('');
+              node.parentNode.replaceChild(text, node);
+              math.start = {node: text, delim: '', n: 0};
+              math.end = {node: text, delim: '', n: 0};
+              doc.math.push(math);
+            });
+          }, '', false],
+          insertedScript: [200, () => {
+            document.querySelectorAll('mjx-container').forEach(node => {
+              let target = node.parentNode;
+              if (target.nodeName.toLowerCase() === 'li') {
+                target.parentNode.classList.add('has-jax');
+              }
+            });
+          }, '', false]
+        }
+      }
+    };
+    (function () {
+      var script = document.createElement('script');
+      script.src = '//cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js';
+      script.defer = true;
+      document.head.appendChild(script);
+    })();
+  } else {
+    MathJax.startup.document.state(0);
+    MathJax.texReset();
+    MathJax.typeset();
+  }
+</script><script async src="/js/cursor/fireworks.js"></script><script src="https://cdn.jsdelivr.net/npm/moment@2.22.2/moment.min.js"></script><script src="https://cdn.jsdelivr.net/npm/moment-precise-range-plugin@1.3.0/moment-precise-range.min.js"></script><script>
+    function timer() {
+      var ages = moment.preciseDiff(moment(),moment(20191220,"YYYYMMDD"));
+      //去除时分秒信息
+      ages = ages.replace(/\s?\d{0,2}\s+hours?/, "");
+      ages = ages.replace(/\s?\d{0,2}\s+minutes?/, "");
+      ages = ages.replace(/\s?\d{0,2}\s+seconds?/, "");
+      //将年月日转换为中文
+      ages = ages.replace(/years?/, "年");
+      ages = ages.replace(/months?/, "月");
+      ages = ages.replace(/days?/, "天");
+      ages = ages.replace(/\d+/g, '<span style="color:#1890ff">$&</span>');
+      span.innerHTML = `footer.age ${ages}`;
+    }
+    var span = document.createElement("span");
+    //插入到agesicon之后
+    var agesicon = document.querySelector(".footer-ages-icon");
+    document.querySelector(".copyright").insertBefore(span, agesicon.nextSibling);
+    timer();
+  </script><link rel="stylesheet" href="//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.css"><script>
+NexT.utils.loadComments(document.querySelector('#gitalk-container'), () => {
+  NexT.utils.getScript('//cdn.jsdelivr.net/npm/gitalk@1/dist/gitalk.min.js', () => {
+    var gitalk = new Gitalk({
+      clientID    : '500094376d9d18a3ed06',
+      clientSecret: '71db1de3f4d19d73479a0ad6887d90081e8b7ca1',
+      repo        : 'MyGitalk',
+      owner       : 'jackcywang',
+      admin       : ['jackcywang'],
+      id          : '95e0d305638981b4d84c487a1f84d56f',
+        language: '',
+      distractionFreeMode: true
+    });
+    gitalk.render('gitalk-container');
+  }, window.Gitalk);
+});
+</script><script>
+NexT.utils.loadComments(document.querySelector('#valine-comments'), () => {
+  NexT.utils.getScript('//unpkg.com/valine/dist/Valine.min.js', () => {
+    var GUEST = ['nick', 'mail', 'link'];
+    var guest = 'nick,mail,link';
+    guest = guest.split(',').filter(item => {
+      return GUEST.includes(item);
+    });
+    new Valine({
+      el         : '#valine-comments',
+      verify     : false,
+      notify     : false,
+      appId      : 'qHl8YMnB0b5OHNGx0AO0fjIE-gzGzoHsz',
+      appKey     : 'wN3c6hhMnkEwVWOSLF0xQ3In',
+      placeholder: "Just go go",
+      avatar     : 'mm',
+      meta       : guest,
+      pageSize   : '10' || 10,
+      visitor    : false,
+      lang       : 'zh-cn' || 'zh-cn',
+      path       : location.pathname,
+      recordIP   : false,
+      serverURLs : ''
+    });
+  }, window.Valine);
+});
+</script><script src="//lib.baomitu.com/jquery/3.3.1/jquery.min.js"></script><script src="https://player.lmih.cn/player/js/player.js" id="myhk" key="158704924834" m="1"></script></body></html>
