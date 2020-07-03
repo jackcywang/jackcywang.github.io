@@ -3060,7 +3060,6 @@ loss= -log(q(x_{i}))\tag{8}</script><p>下面通过一个例子来说明如何�
 ]]></content>
       <categories>
         <category>Deeplearning</category>
-        <category>Classification</category>
       </categories>
       <tags>
         <tag>Deeplearning</tag>
